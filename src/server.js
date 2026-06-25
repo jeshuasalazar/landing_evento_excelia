@@ -110,6 +110,9 @@ app.post("/api/register", async (req, res) => {
     if (!result.duplicate && emailEnabled()) {
       const r = await sendConfirmation(row.email);
       emailed = r.sent;
+      if (!r.sent) {
+        console.error("email_error:", r.reason, r.detail || "");
+      }
     }
 
     return res.json({ ok: true, duplicate: result.duplicate, emailed, emailEnabled: emailEnabled() });
