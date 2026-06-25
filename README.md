@@ -6,7 +6,7 @@ Node.js + Express + Supabase. Listo para Railway en `eventos.ailearning.mx`.
 ## Stack
 - Node 20+ / Express (sirve la landing y la API)
 - HTML5 + CSS propio (tokens aiLearning, sin CDN) + Vanilla JS
-- Supabase (`event_registrations`) — `service_role` solo en servidor
+- Supabase/Postgres (`event_registrations`) — credenciales solo en servidor
 - Resend (email transaccional opcional)
 - Calendarios vía addcal.io (Google / Apple / ICS)
 
@@ -30,20 +30,24 @@ sql/001_event_registrations.sql
 
 ## Local
 ```bash
-cp .env.example .env   # completa SUPABASE_SERVICE_ROLE_KEY
+cp .env.example .env   # completa SUPABASE_DB_URL o SUPABASE_SERVICE_ROLE_KEY
 npm install
 npm run dev            # http://localhost:3000
 ```
 
 ## Supabase
-Tabla ya creada en el proyecto **Academia aiLearning** (`hapgvslbjbmdygkmohuk`).
+Proyecto Supabase esperado: **landing_evento_excelia** (`qvhriacrqscipifwfxzw`).
 Para recrearla: SQL Editor → pegar `sql/001_event_registrations.sql`.
-La `service_role key` está en Supabase → Settings → API. **Nunca** se commitea ni se expone en cliente.
+El backend puede guardar registros con cualquiera de estas variables:
+- `SUPABASE_DB_URL`: connection string de Supabase Database con la contraseña real.
+- `SUPABASE_SERVICE_ROLE_KEY`: service role del mismo proyecto indicado en `SUPABASE_URL`.
+
+**Nunca** se commitean ni se exponen estas credenciales en cliente.
 
 ## Railway
 1. Push del repo a GitHub.
 2. Railway → New Project → Deploy from GitHub repo.
-3. Variables (Settings → Variables): copiar todo `.env.example` con valores reales, incluyendo `SUPABASE_SERVICE_ROLE_KEY` (variable secreta).
+3. Variables (Settings → Variables): copiar todo `.env.example` con valores reales, incluyendo `SUPABASE_DB_URL` o `SUPABASE_SERVICE_ROLE_KEY` como variable secreta.
 4. Healthcheck: `/health` (ya en `railway.json`).
 5. Redeploy.
 
