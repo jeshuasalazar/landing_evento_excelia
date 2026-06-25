@@ -4,12 +4,19 @@ import pg from "pg";
 let client = null;
 let pool = null;
 
+// Cliente Supabase via REST/HTTPS (puerto 443, siempre enrutable en Railway).
+// Usa service role si existe; si no, el publishable key (anon) con policy de INSERT.
 export function getSupabase() {
   if (client) return client;
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_ANON_KEY;
   if (!url || !key) {
-    throw new Error("SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY no configurados");
+    throw new Error(
+      "Falta SUPABASE_URL y una API key (SUPABASE_SERVICE_ROLE_KEY o SUPABASE_PUBLISHABLE_KEY)",
+    );
   }
   client = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -25,6 +32,7 @@ function getDbPool() {
   pool = new pg.Pool({
     connectionString,
     ssl: process.env.DB_SSL === "false" ? false : { rejectUnauthorized: false },
+    connectionTimeoutMillis: 8000,
   });
   return pool;
 }
@@ -78,10 +86,29 @@ async function saveWithPostgres(row) {
 }
 
 // Insercion idempotente: si el email ya existe para el evento, no falla.
+// Ruta principal: REST/HTTPS (confiable en cualquier host).
+// Fallback: conexion directa Postgres si esta configurada.
 // Devuelve { ok, duplicate }.
 export async function saveRegistration(row) {
-  const postgresResult = await saveWithPostgres(row);
-  if (postgresResult) return postgresResult;
+  const hasRestKey =
+    process.env.SUPABASE_URL &&
+    (process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.SUPABASE_PUBLISHABLE_KEY ||
+      process.env.SUPABASE_ANON_KEY);
 
+  if (hasRestKey) {
+    try {
+      return await saveWithSupabase(row);
+    } catch (restErr) {
+      const pgResult = await saveWithPostgres(row).catch(() => null);
+      if (pgResult) return pgResult;
+      throw restErr;
+    }
+  }
+
+  const pgResult = await saveWithPostgres(row);
+  if (pgResult) return pgResult;
+
+  // Sin REST ni Postgres configurados
   return saveWithSupabase(row);
 }
